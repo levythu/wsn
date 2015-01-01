@@ -26,13 +26,33 @@ implementation
   uint32_t tiks;
   message_t pkt[BUFFER_SIZE];
   uint16_t tmp,hum,lig;
-  int acc;
   bool busy = FALSE;
+  bool bTmp,bHum,bLig;
   int head,tail;
+  int DES;
 
   event void Boot.booted() 
   {
     call AMControl.start();
+  }
+
+  void callTmpRead()
+  {
+    if (bTmp==TRUE)
+      return; 
+    call Temp.read();
+  }
+  void callHumidRead()
+  {
+    if (bHum==TRUE)
+      return; 
+    call Humid.read();
+  }
+  void callLightRead()
+  {
+    if (bLig==TRUE)
+      return; 
+    call Light.read();
   }
 
   event void AMControl.startDone(error_t err) 
@@ -42,8 +62,16 @@ implementation
       counter=0;
       head=0;
       tail=-1;
-      acc=-1;
       tiks=0;
+      tmp=hum=lig=0;
+      bTmp=bHum=bLig=FALSE;
+      if (TOS_NODE_ID==SENDER)
+        DES=AM_BROADCAST_ADDR;
+      else
+        DES=CMD;
+      callTmpRead();
+      callHumidRead();
+      callLightRead();
       call Timer0.startPeriodic(TIMER_PERIOD_MILLI);
       call UnbiasedTimer.startPeriodic(100);
     }
@@ -66,7 +94,16 @@ implementation
     if (!busy || isCont) 
     {
       call Ack.requestAck(&pkt[nowPlace]);
-      if (call AMSend.send(AM_BROADCAST_ADDR, &pkt[nowPlace], sizeof(BlinkToRadioMsg)) == SUCCESS) 
+      if (TOS_NODE_ID==MEDIATOR)
+      {
+        BlinkToRadioMsg* buf=(BlinkToRadioMsg*)(call Packet.getPayload(&pkt[nowPlace], sizeof(BlinkToRadioMsg)));
+        if (buf->msgType==CMD)
+          DES=SENDER;
+        else
+          DES=CMD;
+      }
+      
+      if (call AMSend.send(DES, &pkt[nowPlace], sizeof(BlinkToRadioMsg)) == SUCCESS) 
       {
         busy = TRUE;
         call Leds.led2On();
@@ -77,34 +114,20 @@ implementation
 
   event void Timer0.fired() 
   {
-    if (acc>=0) return;
-    acc=0;
-    call Leds.led1On();
-    if (call Temp.read() != SUCCESS )
-    {
-      return;
-    }
-    if (call Humid.read() != SUCCESS)
-    {
-      return;
-    }
-    if (call Light.read() != SUCCESS)
-    {
-      return;
-    }
-  }
-  void accDone()
-  {
     int thisOne=(++tail)%BUFFER_SIZE;
+
     BlinkToRadioMsg* buf=(BlinkToRadioMsg*)(call Packet.getPayload(&pkt[thisOne], sizeof(BlinkToRadioMsg)));
     buf->msgType=TOS_NODE_ID;
     buf->msgNum=counter++;
     buf->msgTime=tiks;
+
+    callTmpRead();
+    callHumidRead();
+    callLightRead();
+
     buf->temp=tmp;
     buf->humid=hum;
     buf->light=lig;
-
-    acc=-1;
     
     sendMessage(FALSE);
   }
@@ -115,19 +138,24 @@ implementation
       tmp=0;
     }
     tmp=data;
-    acc++;
-    if (acc>=3) accDone();
+    if (bTmp==TRUE)
+    {
+      bTmp=FALSE;
+      call Temp.read();
+    }  
   }
   event void Humid.readDone(error_t result, uint16_t data)
   {
-    call Leds.led1Off();
     if (result!=SUCCESS)
     {
       hum=0;
     }
     hum=data;
-    acc++;
-    if (acc>=3) accDone();
+    if (bHum==TRUE)
+    {
+      bHum=FALSE;
+      call Humid.read();
+    }  
   }
   event void Light.readDone(error_t result, uint16_t data)
   {
@@ -136,8 +164,11 @@ implementation
       lig=0;
     }
     lig=data;
-    acc++;
-    if (acc>=3) accDone();
+    if (bLig==TRUE)
+    {
+      bLig=FALSE;
+      call Light.read();
+    } 
   }
 
   event void UnbiasedTimer.fired()

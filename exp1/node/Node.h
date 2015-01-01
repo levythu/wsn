@@ -9,6 +9,7 @@ enum {
   TIMER_PERIOD_MILLI = 250,
   SENDER = 0,
   MEDIATOR = 1,
+  CMD = 2,
 
   SENDER_MSG = 0,
   MEDIATOR_MSG = 1,
