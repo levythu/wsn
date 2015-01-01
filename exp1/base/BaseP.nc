@@ -57,7 +57,7 @@ implementation
 
 		
 		report_fromradio();  
-		if((rcm->msgType == MEDIATOR_MSG) || (rcm->msgType == FORWARDED_MSG))  
+		if((rcm->msgType == MEDIATOR_MSG) || (rcm->msgType == FORWARDED_MSG) || (rcm->msgType == SENDER_MSG))  
 		{
 			addr = call RadioAMPacket.destination(msg);
 			src = call RadioAMPacket.source(msg);

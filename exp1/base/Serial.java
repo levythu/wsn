@@ -196,19 +196,21 @@ public class Serial implements MessageListener {
 
 
 
-		if (this.msgInfo.msgType == 3) {
+		if (this.msgInfo.msgType == 3 || this.msgInfo.msgType == 0) {
 
 			int num = this.msgInfo.msgNum;
 
 
+			if (this.packetFlag[num]==false)
+			{	
+				this.packetFlag[num] = true;
 
-			this.packetFlag[num] = true;
+				if (num > maxNum) {
 
-			if (num > maxNum) {
+					maxNum = num;
 
-				maxNum = num;
-
-			}
+				}
+			}	
 
 		}
 
