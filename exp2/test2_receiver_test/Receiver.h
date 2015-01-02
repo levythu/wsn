@@ -7,7 +7,9 @@ enum
 {
   AM_NUMBERMSG=0,
   AM_ACKMSG=5,
-  AM_RESULTMSG=10
+  AM_RESULTMSG=10,
+
+  AM_REQMSG=9001
 };
 
 typedef nx_struct NumberMsg 
@@ -30,5 +32,13 @@ typedef nx_struct ResultMsg
   nx_uint32_t average;
   nx_uint32_t median;
 } ResultMsg;
+
+typedef nx_struct ReqMsg
+{
+  nx_uint16_t magic;
+  nx_uint32_t seqRequired;
+} ReqMsg;
+
+#define _MAGIC 0x2333
 
 #endif
