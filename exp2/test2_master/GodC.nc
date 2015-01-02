@@ -52,6 +52,8 @@ implementation
     progress=(progress+1)%INTMAX;
     while (call NumberSender.send(AM_BROADCAST_ADDR, &numpkg, sizeof(NumberMsg)) != SUCCESS) 
     { }
+    if (progress==INTMAX-1)
+      call Leds.led0Toggle();
   }
 
   event void NumberSender.sendDone(message_t* msg, error_t err)   

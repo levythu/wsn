@@ -1,0 +1,3 @@
+COMPONENT=ReceiverAppC
+
+include $(MAKERULES)
