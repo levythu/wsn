@@ -33,6 +33,7 @@ implementation
   int gotNums;
   uint8_t status = 0;
   uint32_t cursor = 0;
+  ResultMsg res;
   message_t pkg;
   bool reqBusy;
 
@@ -52,15 +53,18 @@ implementation
     gotNums=0;
     status=RECEIVING;
     reqBusy=FALSE;
+
+    res.max=0;
+    res.min=0xffffffff;
+    res.sum=0;
+
     call AMControl.start();
   }
 
   event void AMControl.startDone(error_t err) 
   {
     if (err == SUCCESS) 
-    {
-      
-    }
+    { }
     else 
     {
       call AMControl.start();
@@ -69,6 +73,49 @@ implementation
 
   event void AMControl.stopDone(error_t err) 
   { }
+
+  void calOneElem(uint32_t pos)
+  {
+    if (res.max<rcd[pos]) res.max=rcd[pos];
+    if (res.min>rcd[pos]) res.min=rcd[pos];
+    res.sum+=rcd[pos];
+  }
+  uint32_t getKthNum(uint32_t begg, uint32_t endd, uint32_t k)    //MUST RUN AFTER THE FINIT OF AGGREGATION, k~[1..n]
+  {
+    uint32_t i=begg,j=endd,p=rcd[(i+j)>>1],q;
+    if (i==j)
+      return p;
+    while (i<=j)
+    {
+      while (rcd[i]<p) i++;
+      while (rcd[j]>p) j--;
+      if (i<=j)
+      {
+        q=rcd[i];
+        rcd[i]=rcd[j];
+        rcd[j]=q;
+        i++;
+        j--;
+      }
+    }  
+    k+=begg-1;
+    if (k<=j) return getKthNum(begg,j,k-begg+1);
+    if (k>=i) return getKthNum(i,endd,k-i+1);
+    return rcd[j+1];
+  }
+  void startCal()
+  {
+    call Leds.led0On();
+    call Leds.led1On();
+    call Leds.led2On();
+
+    res.average=res.sum/nums;
+    res.median=(getKthNum(1, nums, 1000)+getKthNum(1, nums, 1001))>>1;
+
+    call Leds.led0Off();
+    call Leds.led1Off();
+    call Leds.led2Off();
+  }
 
   void reqForNextElem()
   {
@@ -130,6 +177,7 @@ implementation
         {
           call Leds.led2On();
           status=COMPUTING;
+          startCal();
         }  
       }
       else
@@ -137,7 +185,7 @@ implementation
         if (status<REQUIRING)
         {
           status=REQUIRING;
-          call Timer0.startPeriodic(7700);
+          call Timer0.startPeriodic(77);
         }  
       }  
     }
