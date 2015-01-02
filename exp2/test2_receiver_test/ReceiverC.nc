@@ -2,14 +2,27 @@
 #include <Timer.h>
 #include "Receiver.h"
 
+
+enum STAT
+{
+  RECEIVING=10,
+  REQUIRING=20,
+  COMPUTING=30,
+  COMMITING=40
+};
+
 module ReceiverC
 {
   uses interface Boot;
   uses interface Leds;
   uses interface SplitControl as AMControl;
+  uses interface Timer<TMilli> as Timer0;
 
   uses interface Packet as NumberP;
   uses interface Receive as NumberReceiver;
+
+  uses interface Packet as ReqP;
+  uses interface AMSend as ReqSender;
 }
 implementation 
 {
@@ -17,8 +30,11 @@ implementation
   uint32_t rcd[nums+1];
   uint8_t got[nums/8+1];
   uint32_t nums_ = nums;
-  uint32_t c = 0x80000000;
   int gotNums;
+  uint8_t status = 0;
+  uint32_t cursor = 0;
+  message_t pkg;
+  bool reqBusy;
 
   event void Boot.booted() 
   {
@@ -34,6 +50,8 @@ implementation
     rcd[0]=(nums_<<16)|1;
 
     gotNums=0;
+    status=RECEIVING;
+    reqBusy=FALSE;
     call AMControl.start();
   }
 
@@ -51,6 +69,41 @@ implementation
 
   event void AMControl.stopDone(error_t err) 
   { }
+
+  void reqForNextElem()
+  {
+    ReqMsg* buf;
+    if (cursor==0)
+    {
+      if (rcd[cursor]==0)
+      {
+        call Timer0.stop();
+        return;
+      }
+      cursor=rcd[cursor]>>16;   //Find the latest uncaught number!
+    }  
+    buf=(ReqMsg*)(call ReqP.getPayload(&pkg, sizeof(ReqMsg)));
+    buf->magic=_MAGIC;
+    buf->seqRequired=cursor;
+    call Leds.led1On();
+    while (call ReqSender.send(AM_BROADCAST_ADDR, &pkg, sizeof(ReqMsg)) != SUCCESS) 
+    { }
+    reqBusy=TRUE;
+  }
+
+  event void ReqSender.sendDone(message_t* msg, error_t err)
+  {
+    if (err == SUCCESS)
+      cursor=rcd[cursor]>>16;
+    call Leds.led1Off();
+    reqBusy=FALSE;
+  }
+
+  event void Timer0.fired() 
+  {
+    if (reqBusy==FALSE)
+      reqForNextElem();
+  }
 
   event message_t* NumberReceiver.receive(message_t* msg, void* payload, uint8_t len)
   {
@@ -71,14 +124,22 @@ implementation
         rcd[n]|=p<<16;
 
         rcd[btrpkt->sequence_number]=btrpkt->random_integer;
+        if (cursor==btrpkt->sequence_number) cursor=p;
         gotNums++;
         if (gotNums==nums)
         {
           call Leds.led2On();
-          if (rcd[0]==0)
-            call Leds.led1Toggle();
+          status=COMPUTING;
         }  
       }
+      else
+      {
+        if (status<REQUIRING)
+        {
+          status=REQUIRING;
+          call Timer0.startPeriodic(7700);
+        }  
+      }  
     }
     return msg;
   }
