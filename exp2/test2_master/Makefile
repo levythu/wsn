@@ -1,0 +1,3 @@
+COMPONENT=GodAppC
+
+include $(MAKERULES)
