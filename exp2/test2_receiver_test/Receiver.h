@@ -9,7 +9,7 @@ enum
   AM_ACKMSG=5,
   AM_RESULTMSG=10,
 
-  AM_REQMSG=9001
+  AM_REQMSG=91
 };
 
 typedef nx_struct NumberMsg 
@@ -40,5 +40,7 @@ typedef nx_struct ReqMsg
 } ReqMsg;
 
 #define _MAGIC 0x2333
+
+#define GROUP_ID 233
 
 #endif

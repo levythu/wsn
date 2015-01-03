@@ -1,14 +1,15 @@
 
 #include <Timer.h>
 #include "Receiver.h"
-
+#include "printf.h"
 
 enum STAT
 {
   RECEIVING=10,
   REQUIRING=20,
   COMPUTING=30,
-  COMMITING=40
+  COMMITING=40,
+  ENDOFLINE=50
 };
 
 module ReceiverC
@@ -23,6 +24,14 @@ module ReceiverC
 
   uses interface Packet as ReqP;
   uses interface AMSend as ReqSender;
+
+  uses interface Packet as AckP;
+  uses interface Receive as AckReceiver;
+
+  uses interface Packet as ResultP;
+  uses interface AMSend as ResultSender;
+
+  uses interface PacketAcknowledgements as Ack;
 }
 implementation 
 {
@@ -34,8 +43,11 @@ implementation
   uint8_t status = 0;
   uint32_t cursor = 0;
   ResultMsg res;
-  message_t pkg;
+  message_t pkg,finalPkg;
   bool reqBusy;
+
+  void postResult();
+  void startCal();
 
   event void Boot.booted() 
   {
@@ -74,12 +86,6 @@ implementation
   event void AMControl.stopDone(error_t err) 
   { }
 
-  void calOneElem(uint32_t pos)
-  {
-    if (res.max<rcd[pos]) res.max=rcd[pos];
-    if (res.min>rcd[pos]) res.min=rcd[pos];
-    res.sum+=rcd[pos];
-  }
   uint32_t getKthNum(uint32_t begg, uint32_t endd, uint32_t k)    //MUST RUN AFTER THE FINIT OF AGGREGATION, k~[1..n]
   {
     uint32_t i=begg,j=endd,p=rcd[(i+j)>>1],q;
@@ -105,16 +111,31 @@ implementation
   }
   void startCal()
   {
+    uint32_t i,s;
+
     call Leds.led0On();
     call Leds.led1On();
     call Leds.led2On();
 
+    s=0;
+    for (i=1;i<=nums;i++)
+    {
+      if (res.max<rcd[i]) res.max=rcd[i];
+      if (res.min>rcd[i]) res.min=rcd[i];
+      res.sum+=rcd[i];
+      if (i>1000)
+        call Leds.led0Off();
+    }  
     res.average=res.sum/nums;
+    res.group_id=GROUP_ID;
     res.median=(getKthNum(1, nums, 1000)+getKthNum(1, nums, 1001))>>1;
 
     call Leds.led0Off();
     call Leds.led1Off();
     call Leds.led2Off();
+
+    status=COMMITING;
+    //postResult();
   }
 
   void reqForNextElem()
@@ -173,8 +194,12 @@ implementation
         rcd[btrpkt->sequence_number]=btrpkt->random_integer;
         if (cursor==btrpkt->sequence_number) cursor=p;
         gotNums++;
+
+        printf("RECEIVED: %u,",btrpkt->random_integer);
+        printf("totally %d\n",gotNums);
         if (gotNums==nums)
         {
+          printf("TO COMPUTING!\n");
           call Leds.led2On();
           status=COMPUTING;
           startCal();
@@ -188,6 +213,47 @@ implementation
           call Timer0.startPeriodic(77);
         }  
       }  
+    }
+    return msg;
+  }
+
+  //===================LA FINIS DE CALCULATE==========================
+  void postResult()
+  {
+    ResultMsg* buf;
+
+    call Leds.led0On();
+    buf=(ResultMsg*)(call ResultP.getPayload(&finalPkg, sizeof(ResultMsg)));
+    *buf=res;
+    call Ack.requestAck(&finalPkg);
+    while (call ResultSender.send(0, &finalPkg, sizeof(ResultMsg)) != SUCCESS) 
+    { }
+  }
+  
+  event void ResultSender.sendDone(message_t* msg, error_t err)
+  {
+    if (err!=SUCCESS || msg!=&finalPkg)
+    {  
+      postResult();
+      return;
+    }  
+    if((call Ack.wasAcked(msg))==FALSE)
+    {
+      postResult();
+      return;
+    }  
+    call Leds.led0Off();
+    if (status<ENDOFLINE)
+      postResult();
+  }
+
+  event message_t* AckReceiver.receive(message_t* msg, void* payload, uint8_t len)
+  {
+    if (len == sizeof(AckMsg)) 
+    {
+      AckMsg* btrpkt = (AckMsg*)payload;
+      if (btrpkt->group_id==GROUP_ID)
+        status=ENDOFLINE;
     }
     return msg;
   }
