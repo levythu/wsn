@@ -41,6 +41,6 @@ typedef nx_struct ReqMsg
 
 #define _MAGIC 0x2333
 
-#define GROUP_ID 233
+#define GROUP_ID 7
 
 #endif

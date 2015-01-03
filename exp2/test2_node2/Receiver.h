@@ -10,7 +10,7 @@ enum
   AM_RESULTMSG=10,
 
   AM_REQMSG=91,
-  NODE1_ADDR = 1
+  NODE1_ADDR = 19
 };
 
 typedef nx_struct NumberMsg 
