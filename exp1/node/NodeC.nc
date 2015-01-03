@@ -66,7 +66,7 @@ implementation
       tmp=hum=lig=0;
       bTmp=bHum=bLig=FALSE;
       if (TOS_NODE_ID==SENDER)
-        DES=AM_BROADCAST_ADDR;
+        DES=MEDIATOR;
       else
         DES=CMD;
       callTmpRead();
