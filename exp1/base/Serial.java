@@ -33,6 +33,8 @@ public class Serial implements MessageListener {
 
 	private int maxNum;
 
+	private static SerialUI serialUI;
+
 
 
 	public class MessageInfo {
@@ -64,6 +66,8 @@ public class Serial implements MessageListener {
 		this.moteIF.registerListener(new SerialMsg(), this);
 
 		this.msgInfo = new MessageInfo();
+
+		//this.serialUI = new SerialUI(this);
 
 	}
 
@@ -103,17 +107,21 @@ public class Serial implements MessageListener {
 
 		}
 
+		double lossRate;
+
 		if (maxNum == -1) {
 
-			System.out.println("Packet loss ratio: 0");
+			lossRate = 0.0;
 
 		} else {
 
-			System.out.println("Packet loss ratio: " + (double)count / (maxNum + 1));
+			lossRate = (double)count / (maxNum + 1);
 
 		}
 
-		
+		System.out.println("Packet loss ratio: " + lossRate);
+
+		if (serialUI!=null) serialUI.updateLossRate(lossRate);
 
 	}
 
@@ -165,7 +173,7 @@ public class Serial implements MessageListener {
 
 		this.msgInfo.humid = -2.0468 + 0.0367*tempHumidity - 1.5955/(1000000) *(tempHumidity*tempHumidity);
 
-        	this.msgInfo.light = 0.085*msg.get_light();
+        this.msgInfo.light = 0.085*msg.get_light();
 
 
 
@@ -218,6 +226,7 @@ public class Serial implements MessageListener {
 
 		output();
 
+		if (serialUI!=null) serialUI.updateInfo(this.msgInfo);
 
 
 	}
@@ -357,7 +366,7 @@ public class Serial implements MessageListener {
 		Serial serial = new Serial(mif);
 
 		
-
+		serialUI = new SerialUI(serial);
 		//Change Interval
 
 		InputStreamReader ReadIn;
