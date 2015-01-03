@@ -15,7 +15,7 @@ module GodC
 implementation 
 {
   bool NumberSenderOccupied=FALSE;
-  int progress=0;
+  uint32_t progress=0;
   int INTMAX=2000;
   message_t numpkg;
 
@@ -48,7 +48,7 @@ implementation
     call Leds.led2On();
     buf=(NumberMsg*)(call NumberSenderP.getPayload(&numpkg, sizeof(NumberMsg)));
     buf->sequence_number=progress+1;
-    buf->random_integer=progress;
+    buf->random_integer=progress*(1999-progress);
     progress=(progress+1)%INTMAX;
     while (call NumberSender.send(AM_BROADCAST_ADDR, &numpkg, sizeof(NumberMsg)) != SUCCESS) 
     { }

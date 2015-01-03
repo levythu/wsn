@@ -91,43 +91,48 @@ implementation
   uint32_t getKthNum(uint32_t begg, uint32_t endd, uint32_t k)    //MUST RUN AFTER THE FINIT OF AGGREGATION, k~[1..n]
   {
     uint32_t i=begg,j=endd,p=rcd[(i+j)>>1],q;
-    if (i==j)
-      return p;
-    while (i<=j)
+    while (TRUE)
     {
-      while (rcd[i]<p) i++;
-      while (rcd[j]>p) j--;
-      if (i<=j)
+      p=rcd[(i+j)>>1];
+      if (i==j)
+        return p;
+      begg=i;
+      endd=j;
+      while (i<=j)
       {
-        q=rcd[i];
-        rcd[i]=rcd[j];
-        rcd[j]=q;
-        i++;
-        j--;
+        while (rcd[i]<p) i++;
+        while (rcd[j]>p) j--;
+        if (i<=j)
+        {
+          q=rcd[i];
+          rcd[i]=rcd[j];
+          rcd[j]=q;
+          i++;
+          j--;
+        }
       }
-    }  
-    k+=begg-1;
-    if (k<=j) return getKthNum(begg,j,k-begg+1);
-    if (k>=i) return getKthNum(i,endd,k-i+1);
-    return rcd[j+1];
+      k+=begg-1;
+      if (k<=j)
+      {
+        i=begg;
+        k=k-begg+1;
+        continue;
+      }
+      if (k>=i)
+      {
+        j=endd;
+        k=k-i+1;
+        continue;
+      }
+      return rcd[j+1];
+    }
   }
   void startCal()
   {
-    uint32_t i,s;
-
     call Leds.led0On();
     call Leds.led1On();
     call Leds.led2On();
 
-    s=0;
-    for (i=1;i<=nums;i++)
-    {
-      if (res.max<rcd[i]) res.max=rcd[i];
-      if (res.min>rcd[i]) res.min=rcd[i];
-      res.sum+=rcd[i];
-      if (i>1000)
-        call Leds.led0Off();
-    }  
     res.average=res.sum/nums;
     res.group_id=GROUP_ID;
     res.median=(getKthNum(1, nums, 1000)+getKthNum(1, nums, 1001))>>1;
@@ -198,6 +203,10 @@ implementation
         if (cursor==btrpkt->sequence_number) cursor=p;
         gotNums++;
 
+        res.sum+=btrpkt->random_integer;
+        if (res.max<btrpkt->random_integer) res.max=btrpkt->random_integer;
+        if (res.min>btrpkt->random_integer) res.min=btrpkt->random_integer;
+
         if (gotNums==nums)
         {
           call Leds.led2On();
@@ -256,6 +265,9 @@ implementation
 
   event message_t* AckReceiver.receive(message_t* msg, void* payload, uint8_t len)
   {
+    if (status<COMMITING)
+      return msg;
+
     if (len == sizeof(AckMsg)) 
     {
       AckMsg* btrpkt = (AckMsg*)payload;
