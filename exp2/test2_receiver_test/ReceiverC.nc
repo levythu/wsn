@@ -1,7 +1,6 @@
 
 #include <Timer.h>
 #include "Receiver.h"
-#include "printf.h"
 
 enum STAT
 {
@@ -18,6 +17,7 @@ module ReceiverC
   uses interface Leds;
   uses interface SplitControl as AMControl;
   uses interface Timer<TMilli> as Timer0;
+  uses interface Timer<TMilli> as Timer1;
 
   uses interface Packet as NumberP;
   uses interface Receive as NumberReceiver;
@@ -45,6 +45,7 @@ implementation
   ResultMsg res;
   message_t pkg,finalPkg;
   bool reqBusy;
+  bool postBusy;
 
   void postResult();
   void startCal();
@@ -65,6 +66,7 @@ implementation
     gotNums=0;
     status=RECEIVING;
     reqBusy=FALSE;
+    postBusy=FALSE;
 
     res.max=0;
     res.min=0xffffffff;
@@ -135,7 +137,7 @@ implementation
     call Leds.led2Off();
 
     status=COMMITING;
-    //postResult();
+    call Timer1.startPeriodic(77);
   }
 
   void reqForNextElem()
@@ -179,6 +181,7 @@ implementation
     if (len == sizeof(NumberMsg)) 
     {
       NumberMsg* btrpkt = (NumberMsg*)payload;
+
       if (  ((got[btrpkt->sequence_number>>3]>>(btrpkt->sequence_number&7))&1)==0  )
       {
         got[btrpkt->sequence_number>>3]|=(1<<(btrpkt->sequence_number&7));
@@ -195,11 +198,8 @@ implementation
         if (cursor==btrpkt->sequence_number) cursor=p;
         gotNums++;
 
-        printf("RECEIVED: %u,",btrpkt->random_integer);
-        printf("totally %d\n",gotNums);
         if (gotNums==nums)
         {
-          printf("TO COMPUTING!\n");
           call Leds.led2On();
           status=COMPUTING;
           startCal();
@@ -218,6 +218,14 @@ implementation
   }
 
   //===================LA FINIS DE CALCULATE==========================
+  event void Timer1.fired() 
+  {
+    if (postBusy)
+      return;
+    postBusy=TRUE;
+    postResult();
+  }
+
   void postResult()
   {
     ResultMsg* buf;
@@ -243,8 +251,7 @@ implementation
       return;
     }  
     call Leds.led0Off();
-    if (status<ENDOFLINE)
-      postResult();
+    postBusy=FALSE;
   }
 
   event message_t* AckReceiver.receive(message_t* msg, void* payload, uint8_t len)
@@ -253,7 +260,10 @@ implementation
     {
       AckMsg* btrpkt = (AckMsg*)payload;
       if (btrpkt->group_id==GROUP_ID)
+      {
+        call Timer1.stop();
         status=ENDOFLINE;
+      }  
     }
     return msg;
   }

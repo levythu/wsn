@@ -1,4 +1,6 @@
-COMPONENT=ReceiverAppC
+COMPONENT=JudgeAppC
 
 #CFLAGS += -DCC2420_DEF_CHANNEL=22
+CFLAGS += -I$(TOSDIR)/lib/printf
+
 include $(MAKERULES)

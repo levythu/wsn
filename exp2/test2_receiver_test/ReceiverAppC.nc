@@ -10,6 +10,7 @@ implementation {
   components ReceiverC as App;
   components ActiveMessageC;
   components new TimerMilliC() as Timer0;
+  components new TimerMilliC() as Timer1;
   components new AMReceiverC(AM_NUMBERMSG) as NumberReceiver;
   components new AMSenderC(AM_REQMSG) as ReqSender;
   components new AMReceiverC(AM_ACKMSG) as AckReceiver;
@@ -18,6 +19,7 @@ implementation {
   App.Boot -> MainC;
   App.Leds -> LedsC;
   App.Timer0 -> Timer0;
+  App.Timer1 -> Timer1;
 
   App.AMControl -> ActiveMessageC;
 
