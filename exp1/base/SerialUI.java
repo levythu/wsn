@@ -3,9 +3,12 @@ import java.awt.event.*;
 import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Random;
+import java.io.*;
 
 
 class SerialUI extends JFrame {
+
+	int totalCount;
 
 	Serial serial;
 
@@ -43,6 +46,8 @@ class SerialUI extends JFrame {
 	}
 
 	SerialUI(Serial _serial) {
+		int totalCount = 0;
+
 		serial = _serial;
 		serial.ChangeInterval(1000);
 
@@ -175,10 +180,10 @@ class SerialUI extends JFrame {
 					base = 100;
 				} else if (this.type == "humidity") {
 					value = list.get(i)[1];
-					base = 1000;
+					base = 300;
 				} else {
 					value = list.get(i)[2];
-					base = 10;
+					base = 50;
 				}
 				double normalized_value = value / base * (height - 30);
 				int x_value = i * 45 + 10, y_value = (height - 30) - (int)(normalized_value) + 10;
@@ -222,9 +227,9 @@ class SerialUI extends JFrame {
 				if (this.type == "temperature") {
 					gap = 10;
 				} else if (this.type == "humidity") {
-					gap = 100;
+					gap = 30;
 				} else {
-					gap = 1;
+					gap = 5;
 				}
 				g.drawString(Integer.toString((10 - i) * gap), 12, y);
 			}
@@ -293,6 +298,27 @@ class SerialUI extends JFrame {
 	public void updateInfo(Serial.MessageInfo mInfo) {
 		System.out.println("GUI update begins!");
 
+		mInfo.humid = Double.parseDouble(String.format("%.2f", mInfo.humid));
+		mInfo.temp = Double.parseDouble(String.format("%.2f", mInfo.temp));
+		mInfo.light = Double.parseDouble(String.format("%.2f", mInfo.light));
+
+		long totalSeconds = mInfo.msgTime/10;
+		long hour = totalSeconds/3600;
+		long minute = totalSeconds%3600/60;
+		long second = totalSeconds%3600%60;
+
+		try {
+			totalCount++;
+			RandomAccessFile file = new RandomAccessFile("result.txt", "rw");
+			long fileLength = file.length();
+			file.seek(fileLength);
+			file.writeBytes(Integer.toString(totalCount) + ' ' + mInfo.msgNum + ' ' + mInfo.temp + ' ' + mInfo.humid + ' ' + mInfo.light + ' ' + 
+				hour+':'+minute+':'+second+ '\n');
+			file.close();
+		} catch (Throwable e) {
+			System.err.println(e.toString());
+		}
+
 		addInfo(mInfo);
 		tempDis.repaint();
 		humidDis.repaint();
@@ -314,11 +340,11 @@ class SerialUI extends JFrame {
 				}
 				t.msgNum = 0;
 				t.msgTime = 123;
-				t.humid = random.nextDouble() * 450.0;
+				t.humid = random.nextDouble() * 120.0;
 				t.humid = Double.parseDouble(String.format("%.2f", t.humid));
 				t.temp = random.nextDouble() * 40.0;
 				t.temp = Double.parseDouble(String.format("%.2f", t.temp));
-				t.light = random.nextDouble() * 3.0 + 1.0;
+				t.light = random.nextDouble() * 20.0 + 1.0;
 				t.light = Double.parseDouble(String.format("%.2f", t.light));
 				updateInfo(t);
 				updateLossRate(random.nextDouble() * 10);

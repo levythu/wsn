@@ -32,6 +32,7 @@ public class Serial implements MessageListener {
 	private boolean[] packetFlag;
 
 	private int maxNum;
+	private int minNum;
 
 	private static SerialUI serialUI;
 
@@ -58,8 +59,9 @@ public class Serial implements MessageListener {
 	public Serial(MoteIF moteIF) {
 
 		this.maxNum = -1;
+		this.minNum = 12345678;
 
-		this.packetFlag = new boolean[10000];
+		this.packetFlag = new boolean[100000];
 
 		this.moteIF = moteIF;
 
@@ -96,17 +98,18 @@ public class Serial implements MessageListener {
 	public void output() {
 
 		int count = 0;
+		if (minNum<=maxNum)
+		{
+			for (int i = minNum; i <= maxNum; i++) {
 
-		for (int i = 0; i <= maxNum; i++) {
+				if (this.packetFlag[i] == false) {
 
-			if (this.packetFlag[i] == false) {
+					count++;
 
-				count++;
+				}
 
 			}
-
-		}
-
+		}	
 		double lossRate;
 
 		if (maxNum == -1) {
@@ -115,7 +118,7 @@ public class Serial implements MessageListener {
 
 		} else {
 
-			lossRate = (double)count / (maxNum + 1);
+			lossRate = (double)count / (maxNum - minNum +1);
 
 		}
 
@@ -209,7 +212,7 @@ public class Serial implements MessageListener {
 			int num = this.msgInfo.msgNum;
 
 
-			if (this.packetFlag[num]==false)
+			if (this.msgInfo.msgType == 3 && this.packetFlag[num]==false)
 			{	
 				this.packetFlag[num] = true;
 
@@ -217,6 +220,10 @@ public class Serial implements MessageListener {
 
 					maxNum = num;
 
+				}
+				if (num<minNum)
+				{
+					minNum=num;
 				}
 			}	
 

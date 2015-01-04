@@ -28,6 +28,7 @@ implementation
   uint16_t tmp,hum,lig;
   bool busy = FALSE;
   bool bTmp,bHum,bLig;
+  bool rTmp,rHum,rLig;
   int head,tail;
   int DES;
 
@@ -39,19 +40,31 @@ implementation
   void callTmpRead()
   {
     if (bTmp==TRUE)
-      return; 
+    {
+      rTmp=TRUE;
+      return;
+    } 
+    bTmp=TRUE;
     call Temp.read();
   }
   void callHumidRead()
   {
     if (bHum==TRUE)
-      return; 
+    {
+      rHum=TRUE;
+      return;
+    } 
+    bHum=TRUE;
     call Humid.read();
   }
   void callLightRead()
   {
     if (bLig==TRUE)
-      return; 
+    {
+      rLig=TRUE;
+      return;
+    } 
+    bLig=TRUE;
     call Light.read();
   }
 
@@ -65,6 +78,7 @@ implementation
       tiks=0;
       tmp=hum=lig=0;
       bTmp=bHum=bLig=FALSE;
+      rTmp=rHum=rLig=FALSE;
       if (TOS_NODE_ID==SENDER)
         DES=MEDIATOR;
       else
@@ -138,11 +152,13 @@ implementation
       tmp=0;
     }
     tmp=data;
-    if (bTmp==TRUE)
+    if (rTmp==TRUE)
     {
-      bTmp=FALSE;
+      rTmp=FALSE;
       call Temp.read();
-    }  
+    }
+    else
+      bTmp=FALSE;  
   }
   event void Humid.readDone(error_t result, uint16_t data)
   {
@@ -151,11 +167,13 @@ implementation
       hum=0;
     }
     hum=data;
-    if (bHum==TRUE)
+    if (rHum==TRUE)
     {
-      bHum=FALSE;
+      rHum=FALSE;
       call Humid.read();
-    }  
+    }
+    else
+      bHum=FALSE;   
   }
   event void Light.readDone(error_t result, uint16_t data)
   {
@@ -164,11 +182,13 @@ implementation
       lig=0;
     }
     lig=data;
-    if (bLig==TRUE)
+    if (rLig==TRUE)
     {
-      bLig=FALSE;
+      rLig=FALSE;
       call Light.read();
-    } 
+    }
+    else
+      bLig=FALSE;  
   }
 
   event void UnbiasedTimer.fired()
